@@ -3,6 +3,8 @@
 # Last modified: Feb 15th 2018
 #######
 
+import os
+os.environ['QT_QPA_PLATFORM']='offscreen' #Needed when ssh to avoid display on screen
 
 from __future__ import print_function
 # from data_loader import *
