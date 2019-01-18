@@ -32,6 +32,7 @@ def get_class_accuracy(dataloader, net, classes,cuda=0):
         outputs = net(Variable(inputs))
         _, predicted = torch.max(outputs.data, 1)
         c = (predicted == labels).squeeze()
+        IP.embed()
         for i in range(4):
             label = labels[i]
             class_correct[label] += c[i]
