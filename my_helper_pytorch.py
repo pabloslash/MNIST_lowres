@@ -8,14 +8,17 @@ import IPython as IP
 
 ###### Get Accuracy
 
-def get_accuracy(dataloader, net, classes, cuda=0):
+def get_accuracy(dataloader, net, classes, use_cuda, cuda=0):
     correct = 0
     total = 0
     for data in dataloader:
 
         # IP.embed()
         inputs, labels = data
-        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        if use_cuda:
+            inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        else:
+            inputs, labels = Variable(inputs), Variable(labels)
 
         outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
@@ -23,12 +26,16 @@ def get_accuracy(dataloader, net, classes, cuda=0):
         correct += (predicted == labels.data).sum()
     return 100.0 * correct / total
 
-def get_class_accuracy(dataloader, net, classes,cuda=0):
+def get_class_accuracy(dataloader, net, classes, use_cuda, cuda=0):
     class_correct = list(0. for i in range(10))
     class_total = list(0. for i in range(10))
     for data in dataloader:
         inputs, labels = data
-        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        if use_cuda:
+            inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        else:
+            inputs, labels = Variable(inputs), Variable(labels)
+            
         outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         c = (predicted == labels).squeeze()

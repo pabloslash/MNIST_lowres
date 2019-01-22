@@ -142,9 +142,18 @@ class Net_mnist(nn.Module):
 
 #####################################################################
 
+use_cuda = False
 
 net = Net_mnist()
-net.cuda()
+if use_cuda:
+    net.cuda()
+
+#Initialize weights from normal dist.
+torch.nn.init.normal(net.fc.weight, mean=0, std=0.1)
+torch.nn.init.normal(net.fc1.weight, mean=0, std=0.1)
+torch.nn.init.normal(net.fc2.weight, mean=0, std=0.1)
+torch.nn.init.normal(net.fc3.weight, mean=0, std=0.1)
+
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=0.00003)
@@ -162,7 +171,7 @@ test_class_accuracy = []
 
 epochs = 150
 for epoch in range(epochs):
-    print (epoch)
+    # print (epoch)
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
@@ -170,8 +179,10 @@ for epoch in range(epochs):
         inputs, labels = data
 
         # wrap them in Variable
-        # inputs, labels = Variable(inputs), Variable(labels)
-        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        if use_cuda:
+            inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        else:
+            inputs, labels = Variable(inputs), Variable(labels)
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -188,12 +199,13 @@ for epoch in range(epochs):
         running_loss += loss.data[0]
         running_loss = 0.0
 
-    IP.embed()
+    # IP.embed()
 
-    print('Completed an Epoch %d'%(epoch + 1))
-    train_accuracy.append(get_accuracy(trainloader, net, classes))
-    test_accuracy.append(get_accuracy(testloader, net, classes))
-    print('Epoch accuracy {}'.format(test_accuracy[-1]))
+    # print('Completed an Epoch %d'%(epoch + 1))
+    train_accuracy.append(get_accuracy(trainloader, net, classes, use_cuda=use_cuda))
+    test_accuracy.append(get_accuracy(testloader, net, classes, use_cuda=use_cuda))
+    print('Epoch {} | Accuracy {}'.format(epoch+1, test_accuracy[-1])
+    # print('Epoch accuracy {}'.format(test_accuracy[-1]))
     # validation_accuracy.append(get_accuracy(validationloader, net, classes))
 
     # train_class_accuracy.append(get_class_accuracy(trainloader, net, classes))
