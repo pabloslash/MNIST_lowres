@@ -101,12 +101,14 @@ classes = ('0', '1', '2', '3',
 # Static class to add the Stochastic Rounding module to my Network:
 class Binarize_and_StochRound(torch.autograd.Function):
     @staticmethod
-    def forward(x, use_cuda):
-        x = binarize_and_stochRound(x, use_cuda)
+    def forward(x):
+        x = binarize_and_stochRound(x)
         return x
     @staticmethod
-    def backward(grad_output, use_cuda):
-        grad_output = binarize_and_stochRound(grad_output, use_cuda)
+    def backward(grad_output):
+        print('check2')
+        IP.embed()
+        grad_output = binarize_and_stochRound(grad_output)
         return grad_input
 
 class Net_mnist(nn.Module):
@@ -133,14 +135,13 @@ class Net_mnist(nn.Module):
 
     def forward(self, x):
 
-        IP.embed()
         x = x.view(x.size(0), -1)
-        x = self.binarize_and_round(x, use_cuda) # ! BINARIZE INPUTS
+        x = self.binarize_and_round(x) # ! BINARIZE INPUTS
 
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
 
-        x = self.binarize_and_round(x, use_cuda) # ! BINARIZE ACTIVATIONS
+        x = self.binarize_and_round(x) # ! BINARIZE ACTIVATIONS
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
@@ -160,6 +161,7 @@ class Net_mnist(nn.Module):
 
 use_cuda = True
 init_weights = False
+global use_cuda
 
 net = Net_mnist()
 if use_cuda:
@@ -213,6 +215,9 @@ for epoch in range(epochs):
 
         # IP.embed()
 
+        print('check1')
+        IP.embed()
+        
         loss.backward()  #Compute dloss/dx for each weight
         optimizer.step() #Update weights using the gradients
 
