@@ -98,11 +98,24 @@ classes = ('0', '1', '2', '3',
 
 ######################## Data Path ########################
 
+# Static class to add the Stochastic Rounding module to my Network:
+class Binarize_and_StochRound(torch.autograd.Function):
+    @staticmethod
+    def forward(x):
+        x = binarize_and_stochRound(x)
+        return x
+    @staticmethod
+    def backward(grad_output):
+        grad_output = binarize_and_stochRound(grad_output)
+        return grad_input
+
 class Net_mnist(nn.Module):
     def __init__(self):
         super(Net_mnist, self).__init__()
         #convolutional layers
         #the input is 3 RB
+
+        self.binarize_and_round = Binarize_and_StochRound()
 
         self.fc = nn.Linear(784, 200)
         self.fc2 = nn.Linear(200, 10)
@@ -122,12 +135,12 @@ class Net_mnist(nn.Module):
 
         # IP.embed()
         x = x.view(x.size(0), -1)
-        x = binarize_and_stochRound(x) # ! BINARIZE INPUTS
+        x = self.binarize_and_round(x) # ! BINARIZE INPUTS
 
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
 
-        x = binarize_and_stochRound(x) # ! BINARIZE ACTIVATIONS
+        x = self.binarize_and_round(x) # ! BINARIZE ACTIVATIONS
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
@@ -145,7 +158,7 @@ class Net_mnist(nn.Module):
 
 #####################################################################
 
-use_cuda = False
+use_cuda = True
 init_weights = False
 
 net = Net_mnist()

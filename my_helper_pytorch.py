@@ -35,7 +35,7 @@ def get_class_accuracy(dataloader, net, classes, use_cuda, cuda=0):
             inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
         else:
             inputs, labels = Variable(inputs), Variable(labels)
-            
+
         outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         c = (predicted == labels).squeeze()
@@ -209,6 +209,8 @@ def expand_lookup_table(lookup_table, w):
 
 '''This function receives a matrix (torch tensor) of floats, binarizes it and stochastically rounds to closest binary exponent'''
 def binarize_and_stochRound(x):
+    IP.embed()
+
     xnew = x.view(x.size(0) * x.size(1))
     for i in xrange(0, len(xnew)):
         full_prec = xnew[i].data.numpy()
