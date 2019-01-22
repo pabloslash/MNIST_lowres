@@ -15,12 +15,12 @@ def get_accuracy(dataloader, net, classes, cuda=0):
 
         # IP.embed()
         inputs, labels = data
-        # inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
+        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
 
-        outputs = net(Variable(inputs))
+        outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
-        correct += (predicted == labels).sum()
+        correct += (predicted == labels.data).sum()
     return 100.0 * correct / total
 
 def get_class_accuracy(dataloader, net, classes,cuda=0):
@@ -28,8 +28,8 @@ def get_class_accuracy(dataloader, net, classes,cuda=0):
     class_total = list(0. for i in range(10))
     for data in dataloader:
         inputs, labels = data
-        # inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
-        outputs = net(Variable(inputs))
+        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         c = (predicted == labels).squeeze()
         IP.embed()

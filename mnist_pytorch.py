@@ -39,7 +39,7 @@ model = 4
 
 # mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
 mnist_dir = 'home/Users/pablo_tostado/Pablo_Tostado/ML_Datasets'
-batch_size = 1
+batch_size = 20
 
 #### Default loading
 transform = transforms.Compose([
@@ -104,14 +104,17 @@ class Net_mnist(nn.Module):
         #convolutional layers
         #the input is 3 RB
 
-        self.fc = nn.Linear(784, 200)
-        # self.fc1 = nn.Linear(1000, 1000)
-        self.fc2 = nn.Linear(200, 10)
+        self.fc = nn.Linear(784, 1200)
+        self.fc1 = nn.Linear(1200, 1200)
+        # self.fc2 = nn.Linear(200, 10)
+
+        self.fc2 = nn.Linear(1200, 1200)
+        self.fc3 = nn.Linear(1200, 10)
 
         self.batch200 = nn.BatchNorm1d(200)
         self.batch200 = nn.BatchNorm1d(10)
 
-        # self.dropOut = nn.Dropout(p=0.3)
+        self.dropOut = nn.Dropout(p=0.5)
 
     def forward(self, x):
 
@@ -119,12 +122,20 @@ class Net_mnist(nn.Module):
         x = x.view(x.size(0), -1)
 
         x = F.relu(self.fc(x))
+        x = self.dropOut(x)
 
         # x = binarize_and_stochRound(x) # !!! BINARIZE ACTIVATIONS
 
-        # x = self.dropOut(x)
+        x = F.relu(self.fc1(x))
+        x = self.dropOut(x)
+
+        x = F.relu(self.fc2(x))
+        x = self.dropOut(x)
+
+        x = F.relu(self.fc3(x))
+
         # x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        # x = self.fc4(x)
         # x = self.fc2(x)
         return F.log_softmax(x) #softmax classifier
 
@@ -133,7 +144,7 @@ class Net_mnist(nn.Module):
 
 
 net = Net_mnist()
-# net.cuda()
+net.cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=0.00003)
@@ -159,8 +170,8 @@ for epoch in range(epochs):
         inputs, labels = data
 
         # wrap them in Variable
-        inputs, labels = Variable(inputs), Variable(labels)
-        # inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+        # inputs, labels = Variable(inputs), Variable(labels)
+        inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -169,7 +180,6 @@ for epoch in range(epochs):
         outputs = net(inputs)               #FORWARD pass
         loss = criterion(outputs, labels)
 
-        IP.embed()
 
         loss.backward()  #Compute dloss/dx for each weight
         optimizer.step() #Update weights using the gradients
@@ -177,6 +187,8 @@ for epoch in range(epochs):
         # print statistics
         running_loss += loss.data[0]
         running_loss = 0.0
+
+    IP.embed()
 
     print('Completed an Epoch %d'%(epoch + 1))
     train_accuracy.append(get_accuracy(trainloader, net, classes))
