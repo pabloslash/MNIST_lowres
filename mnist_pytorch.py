@@ -101,12 +101,12 @@ classes = ('0', '1', '2', '3',
 # Static class to add the Stochastic Rounding module to my Network:
 class Binarize_and_StochRound(torch.autograd.Function):
     @staticmethod
-    def forward(x):
-        x = binarize_and_stochRound(x)
+    def forward(x, use_cuda):
+        x = binarize_and_stochRound(x, use_cuda)
         return x
     @staticmethod
-    def backward(grad_output):
-        grad_output = binarize_and_stochRound(grad_output)
+    def backward(grad_output, use_cuda):
+        grad_output = binarize_and_stochRound(grad_output, use_cuda)
         return grad_input
 
 class Net_mnist(nn.Module):
@@ -140,7 +140,7 @@ class Net_mnist(nn.Module):
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
 
-        x = self.binarize_and_round(x) # ! BINARIZE ACTIVATIONS
+        x = self.binarize_and_round(x, use_cuda) # ! BINARIZE ACTIVATIONS
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
@@ -158,7 +158,7 @@ class Net_mnist(nn.Module):
 
 #####################################################################
 
-use_cuda = True
+use_cuda = False
 init_weights = False
 
 net = Net_mnist()
