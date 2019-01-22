@@ -104,12 +104,14 @@ class Net_mnist(nn.Module):
         #convolutional layers
         #the input is 3 RB
 
-        self.fc = nn.Linear(784, 1200)
-        self.fc1 = nn.Linear(1200, 1200)
-        # self.fc2 = nn.Linear(200, 10)
+        self.fc = nn.Linear(784, 200)
+        self.fc2 = nn.Linear(200, 10)
 
-        self.fc2 = nn.Linear(1200, 1200)
-        self.fc3 = nn.Linear(1200, 10)
+
+        # self.fc1 = nn.Linear(1200, 1200)
+        #
+        # self.fc2 = nn.Linear(1200, 1200)
+        # self.fc3 = nn.Linear(1200, 10)
 
         self.batch200 = nn.BatchNorm1d(200)
         self.batch200 = nn.BatchNorm1d(10)
@@ -120,19 +122,20 @@ class Net_mnist(nn.Module):
 
         # IP.embed()
         x = x.view(x.size(0), -1)
+        x = binarize_and_stochRound(x) # ! BINARIZE INPUTS
 
         x = F.relu(self.fc(x))
-        x = self.dropOut(x)
+        # x = self.dropOut(x)
 
-        # x = binarize_and_stochRound(x) # !!! BINARIZE ACTIVATIONS
+        x = binarize_and_stochRound(x) # ! BINARIZE ACTIVATIONS
 
-        x = F.relu(self.fc1(x))
-        x = self.dropOut(x)
+        # x = F.relu(self.fc1(x))
+        # x = self.dropOut(x)
+        #
+        # x = F.relu(self.fc2(x))
+        # x = self.dropOut(x)
 
         x = F.relu(self.fc2(x))
-        x = self.dropOut(x)
-
-        x = F.relu(self.fc3(x))
 
         # x = F.relu(self.fc1(x))
         # x = self.fc4(x)
@@ -143,16 +146,19 @@ class Net_mnist(nn.Module):
 #####################################################################
 
 use_cuda = False
+init_weights = False
 
 net = Net_mnist()
 if use_cuda:
     net.cuda()
 
 #Initialize weights from normal dist.
-torch.nn.init.normal(net.fc.weight, mean=0, std=0.1)
-torch.nn.init.normal(net.fc1.weight, mean=0, std=0.1)
-torch.nn.init.normal(net.fc2.weight, mean=0, std=0.1)
-torch.nn.init.normal(net.fc3.weight, mean=0, std=0.1)
+if init_weights:
+    std = 0.01
+    torch.nn.init.normal(net.fc.weight, mean=0, std=std)
+    torch.nn.init.normal(net.fc1.weight, mean=0, std=std)
+    torch.nn.init.normal(net.fc2.weight, mean=0, std=std)
+    torch.nn.init.normal(net.fc3.weight, mean=0, std=std)
 
 
 criterion = nn.CrossEntropyLoss()
@@ -192,6 +198,8 @@ for epoch in range(epochs):
         loss = criterion(outputs, labels)
 
 
+        # IP.embed()
+
         loss.backward()  #Compute dloss/dx for each weight
         optimizer.step() #Update weights using the gradients
 
@@ -202,15 +210,16 @@ for epoch in range(epochs):
     # IP.embed()
 
     # print('Completed an Epoch %d'%(epoch + 1))
-    train_accuracy.append(get_accuracy(trainloader, net, classes, use_cuda=use_cuda))
-    test_accuracy.append(get_accuracy(testloader, net, classes, use_cuda=use_cuda))
-    print('Epoch {} | Accuracy {}'.format(epoch+1, test_accuracy[-1])
+    train_accuracy.append(get_accuracy(trainloader, net, classes, use_cuda))
+    test_accuracy.append(get_accuracy(testloader, net, classes, use_cuda))
+    print('Epoch {} | Accuracy {}'.format(epoch+1, test_accuracy[-1]))
     # print('Epoch accuracy {}'.format(test_accuracy[-1]))
     # validation_accuracy.append(get_accuracy(validationloader, net, classes))
 
     # train_class_accuracy.append(get_class_accuracy(trainloader, net, classes))
     # test_class_accuracy.append(get_class_accuracy(testloader, net, classes))
     # validation_class_accuracy.append(get_class_accuracy(validationloader, net, classes))
+
 
 print('test accuracy:\n')
 print(get_accuracy(testloader, net, classes))
