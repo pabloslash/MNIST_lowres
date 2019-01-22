@@ -37,7 +37,8 @@ from my_helper_pytorch import *
 
 model = 4
 
-mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
+# mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
+mnist_dir = 'home/Users/pablo_tostado/Pablo_Tostado/ML_Datasets'
 batch_size = 1
 
 #### Default loading
@@ -118,6 +119,9 @@ class Net_mnist(nn.Module):
         x = x.view(x.size(0), -1)
 
         x = F.relu(self.fc(x))
+
+        # x = binarize_and_stochRound(x) # !!! BINARIZE ACTIVATIONS
+
         # x = self.dropOut(x)
         # x = F.relu(self.fc1(x))
         x = self.fc2(x)
@@ -125,72 +129,75 @@ class Net_mnist(nn.Module):
         return F.log_softmax(x) #softmax classifier
 
 
-#####################################################################3
+#####################################################################
 
 
-    net = Net_mnist()
-    net.cuda()
+net = Net_mnist()
+# net.cuda()
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.00003)
-    # optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
-    print('Defined Everything')
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(net.parameters(), lr=0.00003)
+# optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
+print('Defined Everything')
 
 
-    train_accuracy = []
-    test_accuracy = []
-    # validation_accuracy = []
+train_accuracy = []
+test_accuracy = []
+# validation_accuracy = []
 
-    train_class_accuracy = []
-    test_class_accuracy = []
-    # validation_class_accuracy = []
+train_class_accuracy = []
+test_class_accuracy = []
+# validation_class_accuracy = []
 
-    epochs = 150
-    for epoch in range(epochs):
-        print (epoch)
+epochs = 150
+for epoch in range(epochs):
+    print (epoch)
 
+    running_loss = 0.0
+    for i, data in enumerate(trainloader, 0):
+        # get the inputs
+        inputs, labels = data
+
+        # wrap them in Variable
+        inputs, labels = Variable(inputs), Variable(labels)
+        # inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = net(inputs)               #FORWARD pass
+        loss = criterion(outputs, labels)
+
+        IP.embed()
+
+        loss.backward()  #Compute dloss/dx for each weight
+        optimizer.step() #Update weights using the gradients
+
+        # print statistics
+        running_loss += loss.data[0]
         running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            # get the inputs
-            inputs, labels = data
 
-            # wrap them in Variable
-            # inputs, labels = Variable(inputs), Variable(labels)
-            inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
+    print('Completed an Epoch %d'%(epoch + 1))
+    train_accuracy.append(get_accuracy(trainloader, net, classes))
+    test_accuracy.append(get_accuracy(testloader, net, classes))
+    print('Epoch accuracy {}'.format(test_accuracy[-1]))
+    # validation_accuracy.append(get_accuracy(validationloader, net, classes))
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+    # train_class_accuracy.append(get_class_accuracy(trainloader, net, classes))
+    # test_class_accuracy.append(get_class_accuracy(testloader, net, classes))
+    # validation_class_accuracy.append(get_class_accuracy(validationloader, net, classes))
 
-            # forward + backward + optimize
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+print('test accuracy:\n')
+print(get_accuracy(testloader, net, classes))
 
-            # print statistics
-            running_loss += loss.data[0]
-            running_loss = 0.0
+model_name = 'networksv2/networks_NOdropout/mnist_model_NOdropout_0'+str(model+1)+'.pt'
+save_dir = os.getcwd() + '/' + model_name
 
-        print('Completed an Epoch %d'%(epoch + 1))
-        train_accuracy.append(get_accuracy(trainloader, net, classes))
-        test_accuracy.append(get_accuracy(testloader, net, classes))
-        print('Epoch accuracy {}'.format(test_accuracy[-1]))
-        # validation_accuracy.append(get_accuracy(validationloader, net, classes))
+#SAVE
+torch.save(net.state_dict(), save_dir)
 
-        train_class_accuracy.append(get_class_accuracy(trainloader, net, classes))
-        test_class_accuracy.append(get_class_accuracy(testloader, net, classes))
-        # validation_class_accuracy.append(get_class_accuracy(validationloader, net, classes))
-
-    print('test accuracy:\n')
-    print(get_accuracy(testloader, net, classes))
-
-    model_name = 'networksv2/networks_NOdropout/mnist_model_NOdropout_0'+str(model+1)+'.pt'
-    save_dir = os.getcwd() + '/' + model_name
-
-    #SAVE
-    torch.save(net.state_dict(), save_dir)
-
-    model+=1
+model+=1
 
 # print('validation accuracy:\n')
 # print(get_accuracy(validationloader, net, classes))

@@ -15,7 +15,7 @@ def get_accuracy(dataloader, net, classes, cuda=0):
 
         # IP.embed()
         inputs, labels = data
-        inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
+        # inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
 
         outputs = net(Variable(inputs))
         _, predicted = torch.max(outputs.data, 1)
@@ -28,7 +28,7 @@ def get_class_accuracy(dataloader, net, classes,cuda=0):
     class_total = list(0. for i in range(10))
     for data in dataloader:
         inputs, labels = data
-        inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
+        # inputs, labels = inputs.cuda(cuda), labels.cuda(cuda)
         outputs = net(Variable(inputs))
         _, predicted = torch.max(outputs.data, 1)
         c = (predicted == labels).squeeze()
@@ -199,3 +199,18 @@ def expand_lookup_table(lookup_table, w):
     lookup_table = np.insert(lookup_table, 0, min_value)
     lookup_table = np.append(lookup_table, max_value)
     return lookup_table
+
+'''This function receives a matrix (torch tensor) of floats, binarizes it and stochastically rounds to closest binary exponent'''
+def binarize_and_stochRound(x):
+    xnew = x.view(x.size(0) * x.size(1))
+    for i in xrange(0, len(xnew)):
+        full_prec = xnew[i].data.numpy()
+
+        if (full_prec != 0):
+            exp = np.floor(np.log2(np.abs(full_prec)))              #Get binary exponent (absolute value)
+            man = (full_prec / 2**exp)                              #Get mantisa (man \in [1,2])
+            flip_coin = np.random.random() < np.abs(man) - 1.0              #Flip_coin to stochstically round full_prec binary number
+            exp += flip_coin * 1.0  #First command is to check sign. Substract one to exp if number is negative. Sume one otherwise.
+
+            xnew.data[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp) #RECOVER SIGN!
+    return xnew.view(x.size(0),x.size(1))
