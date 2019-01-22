@@ -133,9 +133,9 @@ class Net_mnist(nn.Module):
 
     def forward(self, x):
 
-        # IP.embed()
+        IP.embed()
         x = x.view(x.size(0), -1)
-        x = self.binarize_and_round(x) # ! BINARIZE INPUTS
+        x = self.binarize_and_round(x, use_cuda) # ! BINARIZE INPUTS
 
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
@@ -158,7 +158,7 @@ class Net_mnist(nn.Module):
 
 #####################################################################
 
-use_cuda = False
+use_cuda = True
 init_weights = False
 
 net = Net_mnist()
