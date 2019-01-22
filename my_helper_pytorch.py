@@ -211,9 +211,10 @@ def expand_lookup_table(lookup_table, w):
 def binarize_and_stochRound(x):
     IP.embed()
 
-    xnew = x.view(x.size(0) * x.size(1))
+    xnew = x.view(x.size(0) * x.size(1), -1)
     for i in xrange(0, len(xnew)):
-        full_prec = xnew[i].data.numpy()
+        # full_prec = xnew[i].data.numpy()
+        full_prec = xnew[i]
 
         if (full_prec != 0):
             exp = np.floor(np.log2(np.abs(full_prec)))              #Get binary exponent (absolute value)
@@ -221,5 +222,6 @@ def binarize_and_stochRound(x):
             flip_coin = np.random.random() < np.abs(man) - 1.0              #Flip_coin to stochstically round full_prec binary number
             exp += flip_coin * 1.0  #First command is to check sign. Substract one to exp if number is negative. Sume one otherwise.
 
-            xnew.data[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp) #RECOVER SIGN!
+            xnew[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp)
+            # xnew.data[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp) #RECOVER SIGN!
     return xnew.view(x.size(0),x.size(1))
