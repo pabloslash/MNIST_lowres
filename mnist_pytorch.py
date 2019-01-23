@@ -138,6 +138,7 @@ class Net_mnist(nn.Module):
         x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
         # x = Binarize_and_StochRound()(x)
 
+        IP.embed()
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
 

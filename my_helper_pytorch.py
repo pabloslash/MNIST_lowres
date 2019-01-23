@@ -227,4 +227,7 @@ def binarize_and_stochRound(x):
     stoch_rounded = ((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp # First part RECOVERS SIGN.
     xnew = torch.from_numpy(stoch_rounded).float()
         # xnew.data[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp)
+
+    if torch.cuda.is_available():
+        xnew = xnew.cuda()
     return xnew
