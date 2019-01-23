@@ -100,16 +100,12 @@ classes = ('0', '1', '2', '3',
 
 # Static class to add the Stochastic Rounding module to my Network:
 class Binarize_and_StochRound(torch.autograd.Function):
-    @staticmethod
-    def forward(x):
+    def forward(self, x):
         x = binarize_and_stochRound(x)
         return x
-    @staticmethod
-    def backward(grad_output):
-        print('check2')
-        IP.embed()
+    def backward(self, grad_output):
         grad_output = binarize_and_stochRound(grad_output)
-        return grad_input
+        return grad_output
 
 class Net_mnist(nn.Module):
     def __init__(self):
@@ -117,14 +113,16 @@ class Net_mnist(nn.Module):
         #convolutional layers
         #the input is 3 RB
 
-        self.binarize_and_round = Binarize_and_StochRound()
+        self.binarize_and_round1 = Binarize_and_StochRound()
+        self.binarize_and_round2 = Binarize_and_StochRound()
+        self.binarize_and_round3 = Binarize_and_StochRound()
 
-        self.fc = nn.Linear(784, 200)
-        self.fc2 = nn.Linear(200, 10)
+        self.fc = nn.Linear(784, 800)
+        self.fc1 = nn.Linear(800, 800)
+        self.fc2 = nn.Linear(800, 10)
 
 
         # self.fc1 = nn.Linear(1200, 1200)
-        #
         # self.fc2 = nn.Linear(1200, 1200)
         # self.fc3 = nn.Linear(1200, 10)
 
@@ -134,20 +132,27 @@ class Net_mnist(nn.Module):
         self.dropOut = nn.Dropout(p=0.5)
 
     def forward(self, x):
-
         x = x.view(x.size(0), -1)
-        x = self.binarize_and_round(x) # ! BINARIZE INPUTS
+
+        # self.binarize_and_round1 = Binarize_and_StochRound()
+        x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
+        # x = Binarize_and_StochRound()(x)
 
         x = F.relu(self.fc(x))
         # x = self.dropOut(x)
 
-        x = self.binarize_and_round(x) # ! BINARIZE ACTIVATIONS
+        # self.binarize_and_round2 = Binarize_and_StochRound()
+        x = self.binarize_and_round2(x) # ! BINARIZE ACTIVATIONS
+        # x = Binarize_and_StochRound()(x)
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
         #
         # x = F.relu(self.fc2(x))
         # x = self.dropOut(x)
+
+        x = F.relu(self.fc1(x))
+        x = self.binarize_and_round3(x)
 
         x = F.relu(self.fc2(x))
 
@@ -159,9 +164,9 @@ class Net_mnist(nn.Module):
 
 #####################################################################
 
-use_cuda = True
+use_cuda = torch.cuda.is_available()
 init_weights = False
-global use_cuda
+# global use_cuda
 
 net = Net_mnist()
 if use_cuda:
@@ -212,12 +217,6 @@ for epoch in range(epochs):
         outputs = net(inputs)               #FORWARD pass
         loss = criterion(outputs, labels)
 
-
-        # IP.embed()
-
-        print('check1')
-        IP.embed()
-        
         loss.backward()  #Compute dloss/dx for each weight
         optimizer.step() #Update weights using the gradients
 
