@@ -35,11 +35,11 @@ from my_helper_pytorch import *
 ################################## DEFAULT LOADING ######################################
 ###### Initialize variables:
 
-model = 4
+model = 1
 
 # mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
-mnist_dir = 'home/Users/pablo_tostado/Pablo_Tostado/ML_Datasets'
-batch_size = 20
+mnist_dir = os.getcwd() + '/ML_Datasets'
+batch_size = 10
 
 #### Default loading
 transform = transforms.Compose([
@@ -57,7 +57,7 @@ testset = torchvision.datasets.MNIST(root=mnist_dir, train=False,
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                           shuffle=False, num_workers=2)
 
-validation = True
+validation = False
 if (validation == True):
 
     valid_dataset = datasets.MNIST(root=mnist_dir, train=True,
@@ -110,16 +110,15 @@ class Binarize_and_StochRound(torch.autograd.Function):
 class Net_mnist(nn.Module):
     def __init__(self):
         super(Net_mnist, self).__init__()
-        #convolutional layers
-        #the input is 3 RB
 
+        # We need as many instantiations as rounds to do the backward pass
         self.binarize_and_round1 = Binarize_and_StochRound()
         self.binarize_and_round2 = Binarize_and_StochRound()
         self.binarize_and_round3 = Binarize_and_StochRound()
 
-        self.fc = nn.Linear(784, 800)
-        self.fc1 = nn.Linear(800, 800)
-        self.fc2 = nn.Linear(800, 10)
+        self.fc = nn.Linear(784, 200)
+        self.fc1 = nn.Linear(200, 10)
+        # self.fc2 = nn.Linear(800, 10)
 
 
         # self.fc1 = nn.Linear(1200, 1200)
@@ -134,17 +133,20 @@ class Net_mnist(nn.Module):
     def forward(self, x):
         x = x.view(x.size(0), -1)
 
-        # self.binarize_and_round1 = Binarize_and_StochRound()
-        x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
-        # x = Binarize_and_StochRound()(x)
+        # x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
 
-        IP.embed()
+        # self.fc.weight.data = binarize_and_stochRound(self.fc.weight.data)
+        # self.fc1.weight.data = binarize_and_stochRound(self.fc1.weight.data)
+
         x = F.relu(self.fc(x))
+
+        # self.x = binarize_and_stochRound(x)
+
+        # x = self.dropOut(x)
+        x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
 
-        # self.binarize_and_round2 = Binarize_and_StochRound()
-        x = self.binarize_and_round2(x) # ! BINARIZE ACTIVATIONS
-        # x = Binarize_and_StochRound()(x)
+        # x = self.binarize_and_round2(x) # ! BINARIZE ACTIVATIONS
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
@@ -152,15 +154,16 @@ class Net_mnist(nn.Module):
         # x = F.relu(self.fc2(x))
         # x = self.dropOut(x)
 
-        x = F.relu(self.fc1(x))
-        x = self.binarize_and_round3(x)
+        # x = F.relu(self.fc1(x))
+        # x = self.binarize_and_round3(x)
 
-        x = F.relu(self.fc2(x))
+        # x = F.relu(self.fc2(x))
 
         # x = F.relu(self.fc1(x))
         # x = self.fc4(x)
         # x = self.fc2(x)
-        return F.log_softmax(x) #softmax classifier
+
+        return F.log_softmax(x, dim=1) #softmax classifier
 
 
 #####################################################################
@@ -175,15 +178,19 @@ if use_cuda:
 
 #Initialize weights from normal dist.
 if init_weights:
-    std = 0.01
-    torch.nn.init.normal(net.fc.weight, mean=0, std=std)
-    torch.nn.init.normal(net.fc1.weight, mean=0, std=std)
-    torch.nn.init.normal(net.fc2.weight, mean=0, std=std)
-    torch.nn.init.normal(net.fc3.weight, mean=0, std=std)
+#     std = 0.01
+#     torch.nn.init.normal(net.fc.weight, mean=0, std=std)
+#     torch.nn.init.normal(net.fc1.weight, mean=0, std=std)
+#     torch.nn.init.normal(net.fc2.weight, mean=0, std=std)
+
+    IP.embed()
+    torch.nn.init.xavier_uniform(net.fc.weight)
+    torch.nn.init.xavier_uniform(net.fc1.weight)
+    torch.nn.init.xavier_uniform(net.fc2.weight)
 
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=0.00003)
+optimizer = optim.Adam(net.parameters(), lr=0.0000005)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
 print('Defined Everything')
 
@@ -214,8 +221,12 @@ for epoch in range(epochs):
         # zero the parameter gradients
         optimizer.zero_grad()
 
+        net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
+        net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
         # forward + backward + optimize
         outputs = net(inputs)               #FORWARD pass
+
+        # IP.embed()
         loss = criterion(outputs, labels)
 
         loss.backward()  #Compute dloss/dx for each weight
@@ -240,9 +251,9 @@ for epoch in range(epochs):
 
 
 print('test accuracy:\n')
-print(get_accuracy(testloader, net, classes))
+print(get_accuracy(testloader, net, classes, use_cuda))
 
-model_name = 'networksv2/networks_NOdropout/mnist_model_NOdropout_0'+str(model+1)+'.pt'
+model_name = 'networks/mnist_model_dropout50_0'+str(model+1)+'.pt'
 save_dir = os.getcwd() + '/' + model_name
 
 #SAVE
@@ -265,15 +276,15 @@ model+=1
 # '''
 # Total accuracy
 # '''
-# plt.figure()
-# plt.plot(range(epochs), train_accuracy, label='Train accuracy')
-# plt.plot(range(epochs), test_accuracy, label='Test accuracy')
-# # plt.plot(range(epochs), validation_accuracy, label='Validation accuracy')
-# plt.xlabel('Epochs')
-# plt.ylabel('Percent Accuracy')
-# plt.title('Training accuracy over: \n{} Iterations'.format(epochs), fontsize=16)
-# plt.legend(loc='lower right')
-# plt.show(block=False)
+plt.figure()
+plt.plot(range(epochs), train_accuracy, label='Train accuracy')
+plt.plot(range(epochs), test_accuracy, label='Test accuracy')
+# plt.plot(range(epochs), validation_accuracy, label='Validation accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Percent Accuracy')
+plt.title('Training accuracy over: \n{} Iterations'.format(epochs), fontsize=16)
+plt.legend(loc='lower right')
+plt.show(block=False)
 #
 # '''
 # Accuracy by class.

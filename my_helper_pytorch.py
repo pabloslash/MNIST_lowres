@@ -11,9 +11,9 @@ import IPython as IP
 def get_accuracy(dataloader, net, classes, use_cuda, cuda=0):
     correct = 0
     total = 0
-    for data in dataloader:
+    # IP.embed()
 
-        # IP.embed()
+    for data in dataloader:
         inputs, labels = data
         if use_cuda:
             inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
