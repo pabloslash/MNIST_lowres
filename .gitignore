@@ -1,6 +1,7 @@
 # Don't track:
 
 # Files & Folders
+/ML_Datasets/
 /my_funct/
 /networks/
 /networksv2/
