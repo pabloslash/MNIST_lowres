@@ -133,20 +133,20 @@ class Net_mnist(nn.Module):
     def forward(self, x):
         x = x.view(x.size(0), -1)
 
-        # x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
+        x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
 
         # self.fc.weight.data = binarize_and_stochRound(self.fc.weight.data)
         # self.fc1.weight.data = binarize_and_stochRound(self.fc1.weight.data)
 
         x = F.relu(self.fc(x))
 
-        # self.x = binarize_and_stochRound(x)
+        self.x = self.binarize_and_round2(x)
 
         # x = self.dropOut(x)
         x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
 
-        # x = self.binarize_and_round2(x) # ! BINARIZE ACTIVATIONS
+        x = self.binarize_and_round3(x) # ! BINARIZE ACTIVATIONS
 
         # x = F.relu(self.fc1(x))
         # x = self.dropOut(x)
@@ -190,7 +190,7 @@ if init_weights:
 
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=0.0000005)
+optimizer = optim.Adam(net.parameters(), lr=0.0005)
 # optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
 print('Defined Everything')
 
