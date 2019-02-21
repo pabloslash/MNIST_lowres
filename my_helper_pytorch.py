@@ -52,7 +52,9 @@ def get_class_accuracy(dataloader, net, classes, use_cuda, cuda=0):
     return class_perc
 
 
-### Truncated weighst for Inference
+############################################################
+'''TRUNCATION FOR INFERENCE'''
+############################################################
 
 #Build table
 '''This function builds a symmetryc (+/-) table of possible binary values given a precission for mantisa and exponent.
@@ -158,6 +160,10 @@ floating binary vaulues in a lookup table. If it's larger/smaller than the maxim
 it will round it deterministically to the extreme.'''
 def stochastic_rounding(w, lookup_table):
     #Add new values in the edges of the lookup table in case we have weights at the extremes
+    #
+    # print('stoch rounding')
+    # IP.embed()
+
     lookup_table = expand_lookup_table(lookup_table, w)
 
     #Get positions on which weights would be inserted into this lookuptable
@@ -207,12 +213,13 @@ def expand_lookup_table(lookup_table, w):
     lookup_table = np.append(lookup_table, max_value)
     return lookup_table
 
+############################################################
+'''TRUNCATION DURING TRAINING'''
+############################################################
+
 '''This function receives a matrix (torch tensor) of floats, binarizes it and stochastically rounds to closest binary exponent'''
 def binarize_and_stochRound(x):
-
-    # IP.embbed()
     xnew = x
-
     if torch.cuda.is_available():
         full_prec = xnew.cpu().numpy()
     else:
@@ -226,8 +233,22 @@ def binarize_and_stochRound(x):
 
     stoch_rounded = ((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp # First part RECOVERS SIGN.
     xnew = torch.from_numpy(stoch_rounded).float()
-        # xnew.data[i] = float(((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp)
 
     if torch.cuda.is_available():
         xnew = xnew.cuda()
     return xnew
+
+'''This function receives a matrix (torch tensor) of floats, and stochastically rounds them according to the given binary table.'''
+def truncate_and_stoch_round(x, binary_table):
+
+    w_array = x.cpu().numpy() # Convert to numpy array
+    lookup_table = (binary_table).numpy()
+
+    w_array_truncated = stochastic_rounding(w_array, lookup_table)     # Truncate
+# w_array_truncated = deterministic_rounding(w_array, bin_table)
+
+    if torch.cuda.is_available():
+        w_tensor_truncated = torch.from_numpy(w_array_truncated).float().cuda() #Back to cuda tensor
+    else:
+        w_tensor_truncated = torch.from_numpy(w_array_truncated).float() #Back to tensor
+    return w_tensor_truncated
