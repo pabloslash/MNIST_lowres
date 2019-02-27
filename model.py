@@ -24,7 +24,7 @@ class Net_mnist(nn.Module):
         # self.truncate_and_round_fc = Truncate_and_StochRound()
         # self.truncate_and_round_fc1 = Truncate_and_StochRound()
 
-        self.binary_table = torch.from_numpy(build_binary_table_v2(5, 3, -3))
+        self.binary_table = torch.from_numpy(build_binary_table_v2(5, 3, -4))
         # if torch.cuda.is_available(): self.binary_table = Variable((self.binary_table).cuda())
         # else:                         self.binary_table = Variable(self.binary_table)
 
