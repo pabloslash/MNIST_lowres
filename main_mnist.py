@@ -42,7 +42,7 @@ if torch.cuda.is_available():
     net.cuda()
 
 model = 1
-batch_size = 10
+batch_size = 20
 init_weights = False
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(), lr=0.0000005)
