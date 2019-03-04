@@ -97,10 +97,12 @@ for model in xrange(0, len(model_names)):
 
 
 ## Load parameters
-with open('Dropout_deterministic_trunc.pkl') as f:  # Python 3: open(..., 'rb')
+file_folder = 'Sweet_Spot/networks_dropout/'
+file_name = 'sweetSpot_stoch_validation_dropout_03.pkl'
+with open(file_folder + file_name) as f:  # Python 3: open(..., 'rb')
     sweet_spot, truncation_error, truncation_std, rounds_error_save, params = pickle.load(f)
 
-
+print(sweet_spot)
 
 
 
