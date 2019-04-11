@@ -225,15 +225,16 @@ def binarize_and_stochRound(x):
     else:
         full_prec = xnew.numpy()
 
-    full_prec += 1e-8                                       #Avoid problems calculating log(0)
-    exp = np.floor(np.log2(np.abs(full_prec)))              #Get binary exponent (absolute value)
-    man = (full_prec / 2**exp)                              #Get mantisa (man \in [1,2])
-    flip_coin = np.random.random() < np.abs(man) - 1.0              #Flip_coin to stochstically round full_prec binary number
+    full_prec += 1e-8                                       # Avoid problems calculating log(0)
+    exp = np.floor(np.log2(np.abs(full_prec)))              # Get binary exponent (absolute value)
+    man = (full_prec / 2**exp)                              # Get mantisa (man \in [1,2])
+    flip_coin = np.random.random(man.shape) < (np.abs(man) - 1.0)              #Flip_coin to stochstically round full_prec binary number
     exp += flip_coin * 1.0  #First command is to check sign. Substract one to exp if number is negative. Sume one otherwise.
 
-    stoch_rounded = ((full_prec>0)*1.0 + (full_prec<0)*-1.0) * 2.0**exp # First part RECOVERS SIGN.
+    stoch_rounded = np.sign(full_prec)* 2.0**exp # First part RECOVERS SIGN.
     xnew = torch.from_numpy(stoch_rounded).float()
 
+    # print('NaNs = ' + str(np.sum(np.isnan(stoch_rounded))))
     if torch.cuda.is_available():
         xnew = xnew.cuda()
     return xnew
@@ -252,3 +253,33 @@ def truncate_and_stoch_round(x, binary_table):
     else:
         w_tensor_truncated = torch.from_numpy(w_array_truncated).float() #Back to tensor
     return w_tensor_truncated
+
+############################################################
+'''DITHERING'''
+############################################################
+
+# Returns dithered matrix: 0.5, 1, 2 to half, maintain or double weight value according to the dithering percentage.
+# Maintains expected value of the weights.
+'''Hard to explain function. Create your own if reciclying code.'''
+def weight_dithering(x, dith_percentage, dith_levels=3):
+
+    maintain_val = (100-float(dith_percentage)) / 100.0
+
+    k = [2**(level+1) for level in xrange(dith_levels)] # x2 - x1/2, x4 - x 1/4, x8 - x1/8 etc.
+    k_prob = [level/(level+1.0) for level in k] # For each level, get the probability to go to the lower step.
+    # The higher step will be complimentary, which will ensure maintaining the expected value of the weights
+
+    # Get probability of each step and complimentary:
+    k_step_prob = [f(p) for p in k_prob for f in(lambda p: p, lambda p: 1-p)]
+
+    dith_prob = [maintain_val] + [(1-maintain_val)/(dith_levels) * prob for prob in k_step_prob] #Divide prob equally to go to each step
+    new_k = [1.0] + [f(level) for level in k for f in(lambda l: 1/float(l), lambda l: float(l))]
+
+    flip_coin = np.random.random(x.shape) # Create matrix of random nums of size of input Tensor
+    cum_prob_levels =  np.cumsum([0.0] + dith_prob)
+
+    dith_mask = np.zeros(x.shape)
+    for idx in xrange(np.size(new_k)):
+        dith_mask = dith_mask + ((flip_coin > cum_prob_levels[idx]) & (flip_coin < cum_prob_levels[idx+1])) * new_k[idx]
+
+    return x * torch.from_numpy(dith_mask).float().cuda()

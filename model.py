@@ -24,17 +24,20 @@ class Net_mnist(nn.Module):
         # self.truncate_and_round_fc = Truncate_and_StochRound()
         # self.truncate_and_round_fc1 = Truncate_and_StochRound()
 
-        self.binary_table = torch.from_numpy(build_binary_table_v2(5, 3, -4))
+        # self.binary_table = torch.from_numpy(build_binary_table_v2(0, 8, -6))
         # if torch.cuda.is_available(): self.binary_table = Variable((self.binary_table).cuda())
         # else:                         self.binary_table = Variable(self.binary_table)
+
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
 
         # x = self.binarize_and_round1(x) # ! BINARIZE INPUTS
 
-        self.fc.weight.data = truncate_and_stoch_round(self.fc.weight.data, self.binary_table)
-        self.fc1.weight.data = truncate_and_stoch_round(self.fc1.weight.data, self.binary_table)
+        # IP.embed()
+        #
+        # self.fc.weight.data = truncate_and_stoch_round(self.fc.weight.data, self.binary_table)
+        # self.fc1.weight.data = truncate_and_stoch_round(self.fc1.weight.data, self.binary_table)
 
         x = F.relu(self.fc(x))
 

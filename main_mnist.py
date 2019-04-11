@@ -4,7 +4,7 @@
 #######
 
 import os
-os.environ['QT_QPA_PLATFORM']='offscreen' #Needed when ssh to avoid display on screen
+# os.environ['QT_QPA_PLATFORM']='offscreen' #Needed when ssh to avoid display on screen
 
 from __future__ import print_function
 # from data_loader import *
@@ -31,6 +31,9 @@ import pickle
 from mpl_toolkits.mplot3d import Axes3D
 from my_helper_pytorch import *
 from model import *
+import datetime
+import time
+from utils import *
 
 
 ####################################################################
@@ -44,8 +47,9 @@ if torch.cuda.is_available():
 model = 1
 batch_size = 20
 init_weights = False
+lr = 0.00025
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=0.0000005)
+optimizer = optim.Adam(net.parameters(), lr=lr)
 
 ################## DATA LOADING #####################################
 # mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
@@ -88,14 +92,14 @@ classes = ('0', '1', '2', '3',
 
 #Initialize weights from normal / Xavier dist.
 if init_weights:
-#     mean, std = 0., 0.01
-#     torch.nn.init.normal(net.fc.weight, mean=mean, std=std)
-#     torch.nn.init.normal(net.fc1.weight, mean=mean, std=std)
+    mean, std = 0., 1.
+    torch.nn.init.normal(net.fc.weight, mean=mean, std=std)
+    torch.nn.init.normal(net.fc1.weight, mean=mean, std=std)
+    print('Weights initialized from Normal Distribution')
 #     torch.nn.init.normal(net.fc2.weight, mean=mean, std=std)
 
-    torch.nn.init.xavier_uniform(net.fc.weight)
-    torch.nn.init.xavier_uniform(net.fc1.weight)
-    torch.nn.init.xavier_uniform(net.fc2.weight)
+    # torch.nn.init.xavier_uniform(net.fc.weight)
+    # torch.nn.init.xavier_uniform(net.fc1.weight)
 
 # optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
 print('Net Initialized')
@@ -110,10 +114,9 @@ def train(ep):
     # train_class_accuracy = []
     # test_class_accuracy = []
     # validation_class_accuracy = []
-    net.train()
 
     for e in range(ep):
-        # print (epoch)
+        net.train()
 
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
@@ -126,21 +129,37 @@ def train(ep):
 
             optimizer.zero_grad() # zero the parameter gradients, otherwise they accumulate
 
-            # net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
-            # net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
+            # DITHER.
+            # Save original weights to un-do dithered matrices before backprop.
+            l1 = net.fc.weight.data
+            l2 = net.fc1.weight.data
+            #
+            # # Choose percentage prob. to dither. A higher perc. means most of the weights will dither.
+            net.fc.weight.data = weight_dithering(net.fc.weight.data, 50, dith_levels=1)
+            net.fc1.weight.data = weight_dithering(net.fc1.weight.data, 50, dith_levels=1)
 
             outputs = net(inputs)               #FORWARD pass
             loss = criterion(outputs, labels)
-
             loss.backward()  #Compute dloss/dx for each weight
+            # plot_grad_flow(net.named_parameters())
+
+            # Undo DITHER and apply gradients
+            net.fc.weight.data = l1
+            net.fc1.weight.data = l2
             optimizer.step() #Update weights using the gradients
 
             # print statistics
             train_loss.append(loss.data.cpu().numpy())
             running_loss = 0.0
+            # print('Test accuracy = {}'.format(get_accuracy(testloader, net, classes, torch.cuda.is_available())))
 
+            #
+            # net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
+            # net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
 
         # Get performance after epoch:
+        # if e % 10 == 0: lr /= 5
+        net.eval()
         train_accuracy.append(get_accuracy(trainloader, net, classes, torch.cuda.is_available()))
         test_accuracy.append(get_accuracy(testloader, net, classes, torch.cuda.is_available()))
         if (validation):
@@ -156,6 +175,11 @@ def train(ep):
     print('DONE TRAINING. Test accuracy:\n')
     print(get_accuracy(testloader, net, classes, torch.cuda.is_available()))
 
+    print('Print best accuracy of last 15 epochs')
+    IP.embed()
+    save_model()
+    # print('Max. test accuracy of last 15 epochs: {}'.format(np.max(test_accuracy[-15:])))
+
     return train_loss, train_accuracy, validation_accuracy, test_accuracy
 
 
@@ -166,19 +190,21 @@ def test():
     return test_performance
 
 
-
-#####################################33
+#####################################
 ### Load / Save STATE DIR
 
 def save_model():
-    model_name = 'networks/networks_dropout_SGD/mnist_model_dropout_0'+str(model+1)+'.pt'
-    model_name = 'networks/mnist_model_dropout50_0'+str(model+1)+'.pt'
-    save_dir = os.getcwd() + '/' + model_name
-    torch.save(net.state_dict(), save_dir)
+    save_dir = os.getcwd() + "/results/NIPS/"
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+    date = datetime.datetime.now()
+    date_dir = save_dir + str(date.year) + str(date.month) + str(date.day) + '_' + str(date.hour) + str(date.minute)+ '/'  # Save in todays date.
+    os.mkdir(date_dir)
+    model_name = date_dir + 'mnist_model_fullPrec' + '_lr' + str(lr) + 'bs' + str(batch_size) + 'dithering_10.pt'
+    torch.save(net.state_dict(), model_name)
 
 def load_model():
-    model_name = 'networks/mnist_model_dropout50_0'+str(model+1)+'.pt'
-    save_dir = os.getcwd() + '/' + model_name
+    model_name = os.getcwd() + "/results/NIPS/201945_1553/mnist_model_fullPrec_lr0.00025_noDropOut.pt"
     net.load_state_dict(torch.load(save_dir))
 
 
