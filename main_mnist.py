@@ -45,11 +45,12 @@ if torch.cuda.is_available():
     net.cuda()
 
 model = 1
-batch_size = 20
 init_weights = False
-lr = 0.00025
+batch_size = 3
+lr = 0.0005
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=lr)
+# optimizer = optim.Adam(net.parameters(), lr=lr)
+optimizer = optim.SGD(net.parameters(), lr=lr)
 
 ################## DATA LOADING #####################################
 # mnist_dir = '/home/pablotostado/Desktop/PT/ML_Datasets/MNIST/'
@@ -83,8 +84,8 @@ if (validation == True):
     validationloader.dataset.train_labels = validationloader.dataset.train_labels[0:6000]
 
     trainloader.dataset.train_data = trainloader.dataset.train_data[5999:-1]
-    trainloader.dataset.train_labels = trainloader.dataset.train_labels[5999:-1]
 
+    trainloader.dataset.train_labels = trainloader.dataset.train_labels[5999:-1]
 classes = ('0', '1', '2', '3',
            '4', '5', '6', '7', '8', '9')
 
@@ -96,12 +97,10 @@ if init_weights:
     torch.nn.init.normal(net.fc.weight, mean=mean, std=std)
     torch.nn.init.normal(net.fc1.weight, mean=mean, std=std)
     print('Weights initialized from Normal Distribution')
-#     torch.nn.init.normal(net.fc2.weight, mean=mean, std=std)
-
+    # torch.nn.init.normal(net.fc2.weight, mean=mean, std=std)
     # torch.nn.init.xavier_uniform(net.fc.weight)
     # torch.nn.init.xavier_uniform(net.fc1.weight)
 
-# optimizer = optim.SGD(net.parameters(), lr=0.0001)#, momentum=0.9)
 print('Net Initialized')
 
 
@@ -116,6 +115,7 @@ def train(ep):
     # validation_class_accuracy = []
 
     for e in range(ep):
+
         net.train()
 
         running_loss = 0.0
@@ -128,25 +128,77 @@ def train(ep):
                 inputs, labels = Variable(inputs), Variable(labels)
 
             optimizer.zero_grad() # zero the parameter gradients, otherwise they accumulate
+            '''
+            # Stochastic binarization of weights:
+            net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
+            net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
 
             # DITHER.
             # Save original weights to un-do dithered matrices before backprop.
             l1 = net.fc.weight.data
             l2 = net.fc1.weight.data
-            #
-            # # Choose percentage prob. to dither. A higher perc. means most of the weights will dither.
-            net.fc.weight.data = weight_dithering(net.fc.weight.data, 50, dith_levels=1)
-            net.fc1.weight.data = weight_dithering(net.fc1.weight.data, 50, dith_levels=1)
+
+            # print('calculate mask')
+            # IP.embed()
+            # Choose percentage prob. to dither. A higher perc. means most of the weights will dither.
+            dith_mask1, net.fc.weight.data = weight_dithering(net.fc.weight.data, 50, dith_levels=1)
+            dith_mask2, net.fc1.weight.data = weight_dithering(net.fc1.weight.data, 50, dith_levels=1)
+
+            # net.fc.weight.data = fullPrec_grid_dithering(net.fc.weight.data)
+            # net.fc1.weight.data = fullPrec_grid_dithering(net.fc1.weight.data)
+            # IP.embed()
+            outputs = net(inputs)               #FORWARD pass
+            loss = criterion(outputs, labels)
+            # loss.backward()  #Compute dloss/dx for each weight
+            # plot_grad_flow(net.named_parameters())
+
+            error1 = loss.data
+
+            net.fc.weight.data = l1
+            net.fc1.weight.data = l2
+
+            #Calculate complimentary mask (what was x0.5->x2, x1->x1, x2->x0.5)
+            comp_dith_mask1 = dith_mask1/(dith_mask1**2)
+            comp_dith_mask2 = dith_mask2/(dith_mask2**2)
+
+            net.fc.weight.data = net.fc.weight.data * comp_dith_mask1
+            net.fc1.weight.data = net.fc1.weight.data * comp_dith_mask2
 
             outputs = net(inputs)               #FORWARD pass
             loss = criterion(outputs, labels)
-            loss.backward()  #Compute dloss/dx for each weight
-            # plot_grad_flow(net.named_parameters())
+            error2 = loss.data
 
-            # Undo DITHER and apply gradients
             net.fc.weight.data = l1
             net.fc1.weight.data = l2
+
+            grad_fc = -((error1 - error2) / (( dith_mask1*l1 - comp_dith_mask1*l1 ).norm()) ) * (dith_mask1 - comp_dith_mask1)
+            grad_fc1 = -((error1 - error2) / (dith_mask2 - comp_dith_mask2).norm()) * (dith_mask2 - comp_dith_mask2)
+
+            # print('hola')
+            # IP.embed()
+            net.fc.weight.grad =  Variable(grad_fc)
+            net.fc1.weight.grad =  Variable(grad_fc1)
+
+            # # Undo DITHER and apply gradients
+            # net.fc.weight.data = l1
+            # net.fc1.weight.data = l2
             optimizer.step() #Update weights using the gradients
+            '''
+            IP.embed()
+            l1 = net.fc.weight.data
+            l2 = net.fc1.weight.data
+
+            net.fc.weight.data = fullPrec_grid_dithering(net.fc.weight.data)
+            net.fc1.weight.data = fullPrec_grid_dithering(net.fc1.weight.data)
+
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+
+            net.fc.weight.data = l1
+            net.fc1.weight.data = l2
+
+            optimizer.step()
+
 
             # print statistics
             train_loss.append(loss.data.cpu().numpy())
@@ -156,9 +208,10 @@ def train(ep):
             #
             # net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
             # net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
-
+            # if i %100 == 0:
+            #     print(get_accuracy(testloader, net, classes, torch.cuda.is_available()))
         # Get performance after epoch:
-        # if e % 10 == 0: lr /= 5
+        # if e % 10 == 0: lr /= 3
         net.eval()
         train_accuracy.append(get_accuracy(trainloader, net, classes, torch.cuda.is_available()))
         test_accuracy.append(get_accuracy(testloader, net, classes, torch.cuda.is_available()))
@@ -175,9 +228,7 @@ def train(ep):
     print('DONE TRAINING. Test accuracy:\n')
     print(get_accuracy(testloader, net, classes, torch.cuda.is_available()))
 
-    print('Print best accuracy of last 15 epochs')
-    IP.embed()
-    save_model()
+    # save_model()
     # print('Max. test accuracy of last 15 epochs: {}'.format(np.max(test_accuracy[-15:])))
 
     return train_loss, train_accuracy, validation_accuracy, test_accuracy
@@ -200,7 +251,7 @@ def save_model():
     date = datetime.datetime.now()
     date_dir = save_dir + str(date.year) + str(date.month) + str(date.day) + '_' + str(date.hour) + str(date.minute)+ '/'  # Save in todays date.
     os.mkdir(date_dir)
-    model_name = date_dir + 'mnist_model_fullPrec' + '_lr' + str(lr) + 'bs' + str(batch_size) + 'dithering_10.pt'
+    model_name = date_dir + 'mnist_model_fullPrec' + '_lr' + str(lr) + 'bs' + str(batch_size) + 'dithering_50_3levels.pt'
     torch.save(net.state_dict(), model_name)
 
 def load_model():

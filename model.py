@@ -43,7 +43,7 @@ class Net_mnist(nn.Module):
 
         # x = self.dropOut(x)
         x = F.relu(self.fc1(x))
-
+        # IP.embed()
         return F.log_softmax(x, dim=1) #softmax classifier
 
 # Static class to add the Stochastic Rounding module to my Network:

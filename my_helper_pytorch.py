@@ -258,8 +258,8 @@ def truncate_and_stoch_round(x, binary_table):
 '''DITHERING'''
 ############################################################
 
-# Returns dithered matrix: 0.5, 1, 2 to half, maintain or double weight value according to the dithering percentage.
-# Maintains expected value of the weights.
+# Returns dithered matrix: x0.5, x1, x2: to half, maintain or double weight value according to the dithering percentage.
+# Maintains expected value of the weights. Used with full-precision input matrix.
 '''Hard to explain function. Create your own if reciclying code.'''
 def weight_dithering(x, dith_percentage, dith_levels=3):
 
@@ -272,6 +272,9 @@ def weight_dithering(x, dith_percentage, dith_levels=3):
     # Get probability of each step and complimentary:
     k_step_prob = [f(p) for p in k_prob for f in(lambda p: p, lambda p: 1-p)]
 
+    # print('inside weight dith funct')
+    # IP.embed()
+
     dith_prob = [maintain_val] + [(1-maintain_val)/(dith_levels) * prob for prob in k_step_prob] #Divide prob equally to go to each step
     new_k = [1.0] + [f(level) for level in k for f in(lambda l: 1/float(l), lambda l: float(l))]
 
@@ -282,4 +285,29 @@ def weight_dithering(x, dith_percentage, dith_levels=3):
     for idx in xrange(np.size(new_k)):
         dith_mask = dith_mask + ((flip_coin > cum_prob_levels[idx]) & (flip_coin < cum_prob_levels[idx+1])) * new_k[idx]
 
-    return x * torch.from_numpy(dith_mask).float().cuda()
+    return torch.from_numpy(dith_mask).float().cuda(), x * torch.from_numpy(dith_mask).float().cuda()
+
+'''This function gets a full-precision input matrix and returns a dithered weight matrix where all
+the dithering is to quantized possible values: 2^(x-1), 2^(x), 2^(x+1), 2^(x+2). If (w) lies in one
+concrete quantiation value then there are only 3 potential dithering positions. (GERT CAUWENBERGHS' idea.)'''
+def fullPrec_grid_dithering(x):
+
+    wsgn = np.sign(x)
+    w = np.abs(x)
+    wexp = np.floor(np.log2(w))
+    w_i_left_1 = 2**np.floor(np.log2(w)-0)
+
+    w_i_left_2 = 2**np.floor(np.log2(w)-1)
+    w_i_right_1 = 2**np.floor(np.log2(w)+1)
+    w_i_right_2 = 2**np.floor(np.log2(w)+2)
+
+    p_i_minus_2 = 0.5 * (w-w_i_right_1)/(w_i_left_2-w_i_right_1);
+    p_i_minus_1 = p_i_minus_2 + 0.5*(w-w_i_right_2)/(w_i_left_1-w_i_right_2);
+    p_i_plus_1 = p_i_minus_1 + 0.5*(w-w_i_left_2)/(w_i_right_1-w_i_left_2);
+    p_i_plus_2 = p_i_plus_1 + 0.5*(w-w_i_left_1)/(w_i_right_2-w_i_left_1);
+
+    prob = np.random.random(x.shape)
+
+    x = wsgn * ( 2**( wexp - 1*(prob<p_i_minus_2).float() + 1*((prob >= p_i_minus_1)&(prob<p_i_plus_1)).float() + 2*(prob>=p_i_plus_1).float() ) )
+
+    return x.cuda()
