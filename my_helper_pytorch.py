@@ -11,7 +11,6 @@ import IPython as IP
 def get_accuracy(dataloader, net, classes, use_cuda, cuda=0):
     correct = 0
     total = 0
-    # IP.embed()
 
     for data in dataloader:
         inputs, labels = data
@@ -23,7 +22,7 @@ def get_accuracy(dataloader, net, classes, use_cuda, cuda=0):
         outputs = net(inputs)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
-        correct += (predicted == labels.data).sum()
+        correct += (predicted == labels.data).sum().cpu().numpy()
     return 100.0 * correct / total
 
 def get_class_accuracy(dataloader, net, classes, use_cuda, cuda=0):
@@ -219,25 +218,24 @@ def expand_lookup_table(lookup_table, w):
 
 '''This function receives a matrix (torch tensor) of floats, binarizes it and stochastically rounds to closest binary exponent'''
 def binarize_and_stochRound(x):
-    xnew = x
-    if torch.cuda.is_available():
-        full_prec = xnew.cpu().numpy()
-    else:
-        full_prec = xnew.numpy()
 
-    full_prec += 1e-8                                       # Avoid problems calculating log(0)
-    exp = np.floor(np.log2(np.abs(full_prec)))              # Get binary exponent (absolute value)
-    man = (full_prec / 2**exp)                              # Get mantisa (man \in [1,2])
-    flip_coin = np.random.random(man.shape) < (np.abs(man) - 1.0)              #Flip_coin to stochstically round full_prec binary number
-    exp += flip_coin * 1.0  #First command is to check sign. Substract one to exp if number is negative. Sume one otherwise.
+    x += 1e-8                                       # Avoid problems calculating log(0)
+    exp = torch.floor(torch.log2(torch.abs(x)))              # Get binary exponent (absolute value)
+    man = (x / 2**exp)                              # Get mantisa (man \in [1,2])
 
-    stoch_rounded = np.sign(full_prec)* 2.0**exp # First part RECOVERS SIGN.
-    xnew = torch.from_numpy(stoch_rounded).float()
+    flip_coin = (torch.rand(man.shape).cuda() if torch.cuda.is_available() else torch.rand(man.shape)) < (torch.abs(man) - 1.0)              #Flip_coin to stochstically round full_prec binary number
+    exp += flip_coin.float() * 1.0
 
-    # print('NaNs = ' + str(np.sum(np.isnan(stoch_rounded))))
-    if torch.cuda.is_available():
-        xnew = xnew.cuda()
-    return xnew
+    stoch_rounded = torch.sign(x)* 2.0**exp
+    return stoch_rounded
+
+'''Same as above function, deterministic rounding'''
+def binarize_and_detRound(x):
+    x += 1e-8
+    exp = torch.round(torch.log2(torch.abs(x))) #deterministically round full_prec binary number
+    det_rounded = torch.sign(x)* 2.0**exp
+
+    return det_rounded
 
 '''This function receives a matrix (torch tensor) of floats, and stochastically rounds them according to the given binary table.'''
 def truncate_and_stoch_round(x, binary_table):
@@ -260,7 +258,7 @@ def truncate_and_stoch_round(x, binary_table):
 
 # Returns dithered matrix: x0.5, x1, x2: to half, maintain or double weight value according to the dithering percentage.
 # Maintains expected value of the weights. Used with full-precision input matrix.
-'''Hard to explain function. Create your own if reciclying code.'''
+'''Hard to explain function.'''
 def weight_dithering(x, dith_percentage, dith_levels=3):
 
     maintain_val = (100-float(dith_percentage)) / 100.0
@@ -285,7 +283,7 @@ def weight_dithering(x, dith_percentage, dith_levels=3):
     for idx in xrange(np.size(new_k)):
         dith_mask = dith_mask + ((flip_coin > cum_prob_levels[idx]) & (flip_coin < cum_prob_levels[idx+1])) * new_k[idx]
 
-    return torch.from_numpy(dith_mask).float().cuda(), x * torch.from_numpy(dith_mask).float().cuda()
+    return x * torch.from_numpy(dith_mask).float().cuda()
 
 '''This function gets a full-precision input matrix and returns a dithered weight matrix where all
 the dithering is to quantized possible values: 2^(x-1), 2^(x), 2^(x+1), 2^(x+2). If (w) lies in one
@@ -311,3 +309,12 @@ def fullPrec_grid_dithering(x):
     x = wsgn * ( 2**( wexp - 1*(prob<p_i_minus_2).float() + 1*((prob >= p_i_minus_1)&(prob<p_i_plus_1)).float() + 2*(prob>=p_i_plus_1).float() ) )
 
     return x.cuda()
+
+
+'''Dropconnect at the weight level.'''
+def custom_dropconnect(x, dc_percentage):
+    dc = dc_percentage / 100.0
+    dc_matrix = np.random.choice([0, 1], size=(x.shape), p=[dc, 1-dc]) # Binary matrix with dc percentage of zeros.
+    x = x * torch.from_numpy((dc_matrix / (1-dc))).float().cuda()
+
+    return x
