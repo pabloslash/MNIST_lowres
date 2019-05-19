@@ -39,7 +39,12 @@ class Net_mnist(nn.Module):
         # self.fc.weight.data = truncate_and_stoch_round(self.fc.weight.data, self.binary_table)
         # self.fc1.weight.data = truncate_and_stoch_round(self.fc1.weight.data, self.binary_table)
 
+        x = binarize_and_stochRound(x) # Binarize inputs
+
         x = F.relu(self.fc(x))
+
+        x = binarize_and_stochRound(x)
+        x = weight_dithering(x,50)
 
         # x = self.dropOut(x)
         x = F.relu(self.fc1(x))

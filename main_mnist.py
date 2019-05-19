@@ -130,17 +130,17 @@ def train(ep):
             optimizer.zero_grad() # zero the parameter gradients, otherwise they accumulate
 
             # Stochastic binarization of weights:
-            net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
-            net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
+            # net.fc.weight.data = binarize_and_stochRound(net.fc.weight.data)
+            # net.fc1.weight.data = binarize_and_stochRound(net.fc1.weight.data)
 
             # DITHER.
             # Save original weights to un-do dithered matrices before gradient update.
-            l1 = net.fc.weight.data
-            l2 = net.fc1.weight.data
+            # l1 = net.fc.weight.data
+            # l2 = net.fc1.weight.data
 
             # Choose percentage prob. to dither. A higher perc. means most of the weights will dither.
             # net.fc.weight.data = weight_dithering(net.fc.weight.data, 20, dith_levels=1)
-            net.fc1.weight.data = weight_dithering(net.fc1.weight.data, 50, dith_levels=1)
+            # net.fc1.weight.data = weight_dithering(net.fc1.weight.data, 50, dith_levels=1)
 
             # net.fc.weight.data = fullPrec_grid_dithering(net.fc.weight.data)
             # net.fc1.weight.data = fullPrec_grid_dithering(net.fc1.weight.data)
@@ -152,8 +152,8 @@ def train(ep):
 
 
 
-            net.fc.weight.data = l1
-            net.fc1.weight.data = l2
+            # net.fc.weight.data = l1
+            # net.fc1.weight.data = l2
 
             optimizer.step()
 
