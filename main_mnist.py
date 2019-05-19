@@ -4,7 +4,7 @@
 #######
 
 import os
-# os.environ['QT_QPA_PLATFORM']='offscreen' #Needed when ssh to avoid display on screen
+os.environ['QT_QPA_PLATFORM']='offscreen' #Needed when ssh to avoid display on screen
 
 from __future__ import print_function
 # from data_loader import *
@@ -15,9 +15,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from six.moves import cPickle as pickle
-from  PIL import Image
+# from  PIL import Image
 import numpy as np
 import random
 import sys
@@ -250,17 +250,17 @@ def load_model():
 
 #########################################################################################################
 ### PLOTS
-def plot_results():
-    # '''
-    plt.figure()
-    plt.plot(range(epochs), train_accuracy, label='Train accuracy')
-    plt.plot(range(epochs), test_accuracy, label='Test accuracy')
-    # plt.plot(range(epochs), validation_accuracy, label='Validation accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Percent Accuracy')
-    plt.title('Training accuracy over: \n{} Iterations'.format(epochs), fontsize=16)
-    plt.legend(loc='lower right')
-    plt.show(block=False)
+# def plot_results():
+#     # '''
+#     plt.figure()
+#     plt.plot(range(epochs), train_accuracy, label='Train accuracy')
+#     plt.plot(range(epochs), test_accuracy, label='Test accuracy')
+#     # plt.plot(range(epochs), validation_accuracy, label='Validation accuracy')
+#     plt.xlabel('Epochs')
+#     plt.ylabel('Percent Accuracy')
+#     plt.title('Training accuracy over: \n{} Iterations'.format(epochs), fontsize=16)
+#     plt.legend(loc='lower right')
+#     plt.show(block=False)
 #
 # '''
 # Accuracy by class.
