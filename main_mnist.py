@@ -30,7 +30,7 @@ from data_loader_mnist import *
 import pickle
 from mpl_toolkits.mplot3d import Axes3D
 from my_helper_pytorch import *
-from model import *
+from model_mnist import *
 import datetime
 import time
 from utils import *
