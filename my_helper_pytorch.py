@@ -218,8 +218,8 @@ def expand_lookup_table(lookup_table, w):
 
 '''This function receives a matrix (torch tensor) of floats, binarizes it and stochastically rounds to closest binary exponent'''
 def binarize_and_stochRound(x):
-
-    x += 1e-8                                       # Avoid problems calculating log(0)
+    IP.embed()
+    x = x + 1e-8                                       # Avoid problems calculating log(0)
     exp = torch.floor(torch.log2(torch.abs(x)))              # Get binary exponent (absolute value)
     man = (x / 2**exp)                              # Get mantisa (man \in [1,2])
 
@@ -259,7 +259,7 @@ def truncate_and_stoch_round(x, binary_table):
 # Returns dithered matrix: x0.5, x1, x2: to half, maintain or double weight value according to the dithering percentage.
 # Maintains expected value of the weights. Used with full-precision input matrix.
 '''Hard to explain function.'''
-def weight_dithering(x, dith_percentage, dith_levels=3):
+def weight_dithering(x, dith_percentage, dith_levels=1):
 
     maintain_val = (100-float(dith_percentage)) / 100.0
 
